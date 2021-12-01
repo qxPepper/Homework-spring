@@ -7,6 +7,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Request {
     public static final String HOST = "http://localhost:9999";
@@ -48,6 +49,26 @@ public class Request {
             e.printStackTrace();
         }
         return value;
+    }
+
+    public ConcurrentHashMap<String, String> getPostParams() {
+        ConcurrentHashMap<String, String> map = new ConcurrentHashMap<>();
+        final var queries = requestBody.split("&");
+
+        for (String element : queries) {
+            var sign = element.indexOf("=");
+            var key = element.substring(0, sign);
+            var value = element.substring(sign + 1, element.length());
+            map.put(key, value);
+            // Если будут два и более одинаковых имени (ключа в мапе), то
+            // пара ключ-значение будет перезаписываться, в итого получим последнюю пару.
+        }
+        return map;
+    }
+
+    public String getPostParam(String name) {
+        var map = getPostParams();
+        return map.get(name);
     }
 
     public RequestLine getRequestLine() {
