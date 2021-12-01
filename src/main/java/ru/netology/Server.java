@@ -2,9 +2,6 @@ package ru.netology;
 
 import java.io.*;
 import java.net.Socket;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.LocalDateTime;
 
 public class Server implements Runnable {
     private final Socket clientSocket;
@@ -20,17 +17,14 @@ public class Server implements Runnable {
         try (final var input = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
              final var output = new BufferedOutputStream(clientSocket.getOutputStream())) {
             while (true) {
-                var requestLine = input.readLine();
-                if (requestLine == null) {
-                    continue;
-                }
-                var parts = requestLine.split(" ");
+                var readInfo = input.readLine();
+                var requestLine = new RequestLine(readInfo);
 
-                if (parts.length != 3) {
+                if (!requestLine.isCorrect()) {
                     continue;
                 }
 
-                var path = parts[1];
+                var path = requestLine.getPath();
                 if (!serverPool.validPaths.contains(path)) {
                     output.write((
                             "HTTP/1.1 404 Not Found\r\n" +
@@ -42,41 +36,40 @@ public class Server implements Runnable {
                     continue;
                 }
 
-                var filePath = Path.of(".", "public", path);
-                var mimeType = Files.probeContentType(filePath);
+                var message = new StringBuilder();
+                String value;
+                while (true) {
+                    value = input.readLine();
+                    if (value.equals("")) {
+                        break;
+                    }
+                    message.append(value);
+                }
+                var arrMessage = message.toString().split("\r\n\r\n");
+                var requestHeader = arrMessage[0];
 
-                if (path.equals("/classic.html")) {
-                    var template = Files.readString(filePath);
-                    var content = template.replace(
-                            "{time}",
-                            LocalDateTime.now().toString()
-                    ).getBytes();
-                    output.write((
-                            "HTTP/1.1 200 OK\r\n" +
-                                    "Content-Type: " + mimeType + "\r\n" +
-                                    "Content-Length: " + content.length + "\r\n" +
-                                    "Connection: close\r\n" +
-                                    "\r\n"
-                    ).getBytes());
-                    output.write(content);
-                    output.flush();
-                    continue;
+                var requestBody = "";
+                if (arrMessage.length == 2) {
+                    requestBody = arrMessage[1];
                 }
 
-                var length = Files.size(filePath);
-                output.write((
-                        "HTTP/1.1 200 OK\r\n" +
-                                "Content-Type: " + mimeType + "\r\n" +
-                                "Content-Length: " + length + "\r\n" +
-                                "Connection: close\r\n" +
-                                "\r\n"
-                ).getBytes());
-                Files.copy(filePath, output);
-                output.flush();
+                var request = new Request(requestLine, requestHeader, requestBody);
+
+                var method = requestLine.getMethod();
+                var handler = handlerSearch(method, path);
+                handler.handle(request, output);
             }
 
         } catch (IOException exception) {
             exception.printStackTrace();
+        }
+    }
+
+    public Handler handlerSearch(String requestMethod, String requestPath) {
+        if (requestMethod.equals("GET")) {
+            return serverPool.mapGet.get(requestPath);
+        } else {
+            return serverPool.mapPost.get(requestPath);
         }
     }
 }
