@@ -71,6 +71,38 @@ public class Request {
         return map.get(name);
     }
 
+    public ConcurrentHashMap<String, String> getParts() {
+        ConcurrentHashMap<String, String> map = new ConcurrentHashMap<>();
+        var boundary = "";
+        for (String header : requestHeader) {
+            if (header.contains("boundary")) {
+                boundary = header.substring(header.indexOf("=") + 1);
+                break;
+            }
+        }
+
+        for (String paramString : requestBody.split(boundary)) {
+            if (paramString.contains("name=")) {
+                var startKey = paramString.indexOf("name=");
+                var endKey = paramString.indexOf("\r\n\r\n");
+                var key = paramString.substring(startKey + "name=".length() + 1, endKey - 1);
+
+                var startValue = endKey + "\r\n\r\n".length();
+                var str = paramString.substring(startValue);
+                var endStr = str.indexOf("--");
+                var value = str.substring(0, endStr - 1);
+
+                map.put(key, value);
+            }
+        }
+        return map;
+    }
+
+    public String getPart(String name) {
+        var map = getParts();
+        return map.get(name);
+    }
+
     public RequestLine getRequestLine() {
         return requestLine;
     }

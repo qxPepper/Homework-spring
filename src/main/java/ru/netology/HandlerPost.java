@@ -42,7 +42,13 @@ public class HandlerPost implements Handler {
                     }
 
                 } else {
-                    System.out.println("multipart/form-data будет в следующем задании");
+                    // getPart(String name), getParts()
+                    System.out.println("multipart/form-data:");
+
+                    map = request.getParts();
+                    for (String elm : map.keySet()) {
+                        System.out.println("key: " + elm + ", value: " + request.getPart(elm));
+                    }
                 }
             } else {
                 System.out.println("запрос POST с пустым телом");
