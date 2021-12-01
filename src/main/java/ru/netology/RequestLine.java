@@ -51,4 +51,9 @@ public class RequestLine {
     public boolean isCorrect() {
         return correct;
     }
+
+    @Override
+    public String toString() {
+        return method + " " + path + "?" + queryString + " " + version;
+    }
 }
