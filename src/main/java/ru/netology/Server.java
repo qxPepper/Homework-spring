@@ -11,11 +11,19 @@ public class Server implements Runnable {
     public static final String POST = "POST";
     public static final int BUFFER_LIMIT = 4096;
 
-    public static Request request;
-
     private final Socket clientSocket;
     private final ServerPool serverPool;
     private final List<String> allowedMethods = List.of(GET, POST);
+
+    private byte[] buffer;
+    private int read;
+    private int requestLineEnd;
+    private byte[] requestLineDelimiter;
+    private byte[] headersDelimiter;
+
+    private RequestLine requestLine;
+    private List<String> requestHeader;
+    private String requestBody;
 
     public Server(Socket clientSocket, ServerPool serverPool) {
         this.clientSocket = clientSocket;
@@ -29,50 +37,17 @@ public class Server implements Runnable {
             final var limit = BUFFER_LIMIT;
 
             input.mark(limit);
-            final var buffer = new byte[limit];
-            final var read = input.read(buffer);
+            buffer = new byte[limit];
+            read = input.read(buffer);
 
-            final var requestLineDelimiter = new byte[]{'\r', '\n'};
-            final var requestLineEnd = indexOf(buffer, requestLineDelimiter, 0, read);
-            if (requestLineEnd == -1) {
+            if (!defineRequestLine() || !defineRequestHeader(input)) {
                 badRequest(output);
                 return;
             }
 
-            final var requestLine = new RequestLine(new String(Arrays.copyOf(buffer, requestLineEnd)));
+            requestBody = defineRequestBody(input);
 
-            if (!isRequestLineCorrect(requestLine)) {
-                badRequest(output);
-                return;
-            }
-
-            final var headersDelimiter = new byte[]{'\r', '\n', '\r', '\n'};
-            final var headersStart = requestLineEnd + requestLineDelimiter.length;
-            final var headersEnd = indexOf(buffer, headersDelimiter, headersStart, read);
-            if (headersEnd == -1) {
-                badRequest(output);
-                return;
-            }
-
-            input.reset();
-            input.skip(headersStart);
-
-            final var headersBytes = input.readNBytes(headersEnd - headersStart);
-            final var requestHeader = Arrays.asList(new String(headersBytes).split("\r\n"));
-
-            String requestBody = "";
-            if (!requestLine.getMethod().equals(GET)) {
-                input.skip(headersDelimiter.length);
-                final var contentLength = extractHeader(requestHeader);
-                if (contentLength.isPresent()) {
-                    final var length = Integer.parseInt(contentLength.get());
-                    final var bodyBytes = input.readNBytes(length);
-
-                    requestBody = new String(bodyBytes);
-                }
-            }
-
-            request = new Request(requestLine, requestHeader, requestBody);
+            Request request = new Request(requestLine, requestHeader, requestBody);
             showRequest(request);
 
             var handler = handlerSearch(requestLine.getMethod(), requestLine.getPath());
@@ -87,10 +62,52 @@ public class Server implements Runnable {
         }
     }
 
-    public boolean isRequestLineCorrect(RequestLine requestLine) {
+    public boolean defineRequestLine() {
+        requestLineDelimiter = new byte[]{'\r', '\n'};
+        requestLineEnd = indexOf(buffer, requestLineDelimiter, 0, read);
+
+        if (requestLineEnd == -1) {
+            return false;
+        }
+
+        requestLine = new RequestLine(new String(Arrays.copyOf(buffer, requestLineEnd)));
+
         return requestLine.isCorrect() &&
                 allowedMethods.contains(requestLine.getMethod()) &&
                 requestLine.getPath().startsWith("/");
+    }
+
+    public boolean defineRequestHeader(BufferedInputStream input) throws IOException {
+        headersDelimiter = new byte[]{'\r', '\n', '\r', '\n'};
+        final var headersStart = requestLineEnd + requestLineDelimiter.length;
+        final var headersEnd = indexOf(buffer, headersDelimiter, headersStart, read);
+
+        if (headersEnd == -1) {
+            return false;
+        }
+
+        input.reset();
+        input.skip(headersStart);
+
+        final var headersBytes = input.readNBytes(headersEnd - headersStart);
+        requestHeader = Arrays.asList(new String(headersBytes).split("\r\n"));
+
+        return true;
+    }
+
+    public String defineRequestBody(BufferedInputStream input) throws IOException {
+        requestBody = "";
+        if (!requestLine.getMethod().equals(GET)) {
+            input.skip(headersDelimiter.length);
+            final var contentLength = extractHeader(requestHeader);
+            if (contentLength.isPresent()) {
+                final var length = Integer.parseInt(contentLength.get());
+                final var bodyBytes = input.readNBytes(length);
+
+                requestBody = new String(bodyBytes);
+            }
+        }
+        return requestBody;
     }
 
     public Handler handlerSearch(String requestMethod, String requestPath) {
@@ -149,4 +166,3 @@ public class Server implements Runnable {
         System.out.println();
     }
 }
-
