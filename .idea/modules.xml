@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/http-server.iml" filepath="$PROJECT_DIR$/http-server.iml" />
+      <module fileurl="file://$PROJECT_DIR$/forms.iml" filepath="$PROJECT_DIR$/forms.iml" />
     </modules>
   </component>
 </project>
