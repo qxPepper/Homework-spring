@@ -21,6 +21,7 @@ public class HandlerGet implements Handler {
 
             // getQueryParam(String name), getQueryParams()
             List<NameValuePair> pairs = request.getQueryParams();
+            request.defineHost();
             for (NameValuePair pair : pairs) {
                 System.out.println("key: " + pair.getName() +
                         ", value: " + request.getQueryParam(pair.getName()));

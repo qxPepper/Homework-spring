@@ -68,7 +68,6 @@ public class HandlerPost implements Handler {
                             "\r\n"
             ).getBytes());
             Files.copy(filePath, responseStream);
-            ;
             responseStream.flush();
 
         } catch (Exception exception) {

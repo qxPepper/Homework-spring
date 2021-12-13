@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Request {
-    public static final String HOST = "http://localhost:9999";
     private final RequestLine requestLine;
     private final List<String> requestHeader;
     private final String requestBody;
@@ -30,7 +29,7 @@ public class Request {
     }
 
     public List<NameValuePair> getQueryParams() throws URISyntaxException {
-        var uri = new URI(HOST + path + "?" + queryString);
+        var uri = new URI("http://" + defineHost() + path + "?" + queryString);
         return URLEncodedUtils.parse(uri, String.valueOf(StandardCharsets.UTF_8));
     }
 
@@ -101,6 +100,15 @@ public class Request {
     public String getPart(String name) {
         var map = getParts();
         return map.get(name);
+    }
+
+    public String defineHost() {
+        for (String header : requestHeader) {
+            if (header.contains("Host")) {
+                return header.split(" ")[1];
+            }
+        }
+        return "";
     }
 
     public RequestLine getRequestLine() {

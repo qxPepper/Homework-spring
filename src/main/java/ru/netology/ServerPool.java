@@ -1,6 +1,7 @@
 package ru.netology;
 
 import java.io.*;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.List;
@@ -21,7 +22,10 @@ public class ServerPool {
 
         try (ServerSocket serverSocket = new ServerSocket(serverPort)) {
             while (true) {
+
                 Socket clientSocket = serverSocket.accept();
+
+
 
                 Server server = new Server(clientSocket, this);
                 threadPool.execute(server);
